@@ -19,13 +19,19 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import br.com.sicredi.issue.domain.dtos.IssueDTO;
 import br.com.sicredi.issue.domain.entities.IssueEntity;
 import br.com.sicredi.issue.domain.services.IssueService;
+import br.com.sicredi.issue.domain.services.exceptions.ObjectNotFoundException;
 
 @RestController
-@RequestMapping(value = "/issues") 
+@RequestMapping(value = "/issues")
 public class IssueResource {
 
 	@Autowired
 	private IssueService issueService;
+
+	public IssueResource(IssueService issueService) {
+		super();
+		this.issueService = issueService;
+	}
 
 	@GetMapping("/")
 	public ResponseEntity<List<IssueDTO>> findAll() {
@@ -44,8 +50,12 @@ public class IssueResource {
 
 	@GetMapping("/{id}")
 	public ResponseEntity<IssueDTO> findById(@PathVariable String id) {
-		IssueEntity issueEntity = issueService.findById(id);
-		return ResponseEntity.ok().body(new IssueDTO(issueEntity));
+		try {
+			IssueEntity issueEntity = issueService.findById(id);
+			return ResponseEntity.ok().body(new IssueDTO(issueEntity));
+		} catch (ObjectNotFoundException e) {
+			return ResponseEntity.notFound().build();
+		}
 	}
 
 	@PostMapping("/")
@@ -63,15 +73,19 @@ public class IssueResource {
 
 	@PutMapping("/{id}")
 	public ResponseEntity<Void> update(@PathVariable String id, @RequestBody IssueDTO issueDTO) {
-		IssueEntity issueEntity = issueService.fromDTO(issueDTO);
-		issueEntity.setId(id);
-		issueEntity = issueService.update(issueEntity);
-		return ResponseEntity.noContent().build();
+		try {
+			IssueEntity issueEntity = issueService.fromDTO(issueDTO);
+			issueEntity.setId(id);
+			issueEntity = issueService.update(issueEntity);
+			return ResponseEntity.noContent().build();
+		} catch (ObjectNotFoundException e) {
+			return ResponseEntity.notFound().build();
+		}
 	}
 
 	@PatchMapping("/{id}/start")
 	public ResponseEntity<Void> startVotation(@PathVariable String id, @RequestBody Long minutes) {
-		IssueEntity issueEntity = issueService.startVotation(id, minutes);
+		issueService.startVotation(id, minutes);
 		return ResponseEntity.noContent().build();
 	}
 

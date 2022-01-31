@@ -3,6 +3,7 @@ package br.com.sicredi.issue.domain.services;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -24,7 +25,7 @@ public class IssueService {
 	
 	@Autowired
 	private IssueRepository	issueRepository;
-	
+
 	@Value("${spring.redis.host}")
 	private String redisHost;
 
@@ -39,17 +40,25 @@ public class IssueService {
 	}
 
 	public IssueEntity findById(String id) {
-		return issueRepository.findById(id)
-				.orElseThrow(() -> new ObjectNotFoundException("Issue not found"));
+		Optional<IssueEntity> issueEntity = issueRepository.findById(id);
+		
+		if (issueEntity==null) {
+			throw new ObjectNotFoundException("Issue not found");
+		}
+		return issueEntity.get();
 	}
 	
 	public IssueEntity insert(IssueEntity issueEntity) {
-		return issueRepository.insert(issueEntity);
+		try {
+			return issueRepository.insert(issueEntity);
+		} catch (Exception e) {
+			System.out.println("error >>> " + e.getMessage());
+			return new IssueEntity();
+		}
 	}
 	
 	public IssueEntity update(IssueEntity issueEntity) {
-		IssueEntity newIssueEntity = issueRepository.findById(issueEntity.getId())
-				.orElseThrow(() -> new ObjectNotFoundException("Issue not found"));
+		IssueEntity newIssueEntity = this.findById(issueEntity.getId());
 
 		newIssueEntity.setName(issueEntity.getName());
 		newIssueEntity.setDescription(issueEntity.getDescription());
@@ -57,14 +66,13 @@ public class IssueService {
 	}
 	
 	public IssueEntity startVotation(String id, Long minutesToVote) {
-		IssueEntity newIssueEntity = issueRepository.findById(id)
-				.orElseThrow(() -> new ObjectNotFoundException("Issue not found"));
+		IssueEntity newIssueEntity = this.findById(id);
 
 		Instant start = Instant.now();
 	    Instant end = start.plus(minutesToVote, ChronoUnit.MINUTES);
 		newIssueEntity.setStartVotationAt(start);
 		newIssueEntity.setEndVotationAt(end);
-		
+
 		cleanRedis();
 
 		return issueRepository.save(newIssueEntity);
@@ -89,6 +97,11 @@ public class IssueService {
 		return issueEntity;
 	}
 
+	public IssueService(IssueRepository issueRepository) {
+		super();
+		this.issueRepository = issueRepository;
+	}
+
 	// REALOCAR
 	public void cleanRedis() {
 		JedisShardInfo shardInfo = new JedisShardInfo(redisHost, redisPort);
@@ -96,6 +109,7 @@ public class IssueService {
 		Jedis jedis = new Jedis(shardInfo);
 		jedis.connect();		
 		jedis.flushAll();
+		jedis.close();
 	}
 
 	public IssueEntity fromDTO( IssueDTO issueDTO ) {
