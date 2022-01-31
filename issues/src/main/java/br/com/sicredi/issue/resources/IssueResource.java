@@ -74,7 +74,10 @@ public class IssueResource {
 	@PutMapping("/{id}")
 	public ResponseEntity<Void> update(@PathVariable String id, @RequestBody IssueDTO issueDTO) {
 		try {
+			issueService.findById(id);
+
 			IssueEntity issueEntity = issueService.fromDTO(issueDTO);
+
 			issueEntity.setId(id);
 			issueEntity = issueService.update(issueEntity);
 			return ResponseEntity.noContent().build();
@@ -91,7 +94,14 @@ public class IssueResource {
 
 	@GetMapping("/{id}/results")
 	public ResponseEntity<IssueDTO> getResults(@PathVariable String id) {
-		IssueEntity issueEntity = issueService.getResults(id);
-		return ResponseEntity.ok().body(new IssueDTO(issueEntity));
+		try {
+			IssueEntity issueEntity = issueService.getResults(id);
+
+			return ResponseEntity.ok().body(new IssueDTO(issueEntity));
+		} catch (Exception e) {
+			// TODO: handle exception
+			System.out.println("IssueResource.getResults >>> exception >>> " + e.getMessage());
+		}
+		return ResponseEntity.notFound().build();
 	}
 }

@@ -35,13 +35,16 @@ public class IssueService {
 	@Value("${spring.redis.password}")
 	private String redisPassword;
 
+	@Value("${feignClient.votescount.uri}")
+	private String votescountUri;
+
 	public List<IssueEntity> findAll() {
 		return issueRepository.findAll();
 	}
 
 	public IssueEntity findById(String id) {
 		Optional<IssueEntity> issueEntity = issueRepository.findById(id);
-		
+
 		if (issueEntity==null) {
 			throw new ObjectNotFoundException("Issue not found");
 		}
@@ -79,13 +82,12 @@ public class IssueService {
 	}
 	
 	public IssueEntity getResults(String id) {
-		IssueEntity issueEntity = issueRepository.findById(id)
-				.orElseThrow(() -> new ObjectNotFoundException("Issue not found"));
+		IssueEntity issueEntity = this.findById(id);
 
  		try {
  			VotescountClient votescountClient = Feign.builder()
 					.decoder(new GsonDecoder())
-					.target(VotescountClient.class, "http://localhost:8085");
+					.target(VotescountClient.class, votescountUri);
 
 			VotescountJson VotescountJson = votescountClient.getResults(id);
 			issueEntity.setYesVotes(VotescountJson.getVotesYes().intValue());
